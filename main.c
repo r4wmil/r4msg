@@ -1,10 +1,18 @@
 #include <stdio.h>
+#include <string.h>
 
 #include <mongoose.h>
 
 void h_http_binary(struct mg_connection* c, struct mg_str data) {
 	mg_hexdump(data.buf, data.len);
-	mg_send(c, NULL, 0);
+	uint8_t result = 0;
+	mg_hexdump(&result, 1);
+	mg_printf(c,
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Type: application/octet-stream\r\n"
+			"Content-Length: %d\r\n\r\n",
+			1);
+	mg_send(c, &result, 1);
 }
 
 void h_http_msg(struct mg_connection* c, void* ev_data) {
