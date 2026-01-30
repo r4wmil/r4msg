@@ -3,16 +3,21 @@
 
 #include <mongoose.h>
 
+void http_reply_binary(struct mg_connection* c, uint8_t* buf, size_t len) {
+	mg_printf(c,
+			"HTTP/1.1 200 OK\r\n"
+			"Connection: close\r\n"
+			"Content-Type: application/octet-stream\r\n"
+			"Content-Length: %d\r\n\r\n",
+			len);
+	mg_send(c, buf, len);
+}
+
 void h_http_binary(struct mg_connection* c, struct mg_str data) {
 	mg_hexdump(data.buf, data.len);
 	uint8_t result = 0;
 	mg_hexdump(&result, 1);
-	mg_printf(c,
-			"HTTP/1.1 200 OK\r\n"
-			"Content-Type: application/octet-stream\r\n"
-			"Content-Length: %d\r\n\r\n",
-			1);
-	mg_send(c, &result, 1);
+	http_reply_binary(c, &result, 1);
 }
 
 void h_http_msg(struct mg_connection* c, void* ev_data) {
