@@ -1,1 +1,25 @@
-HELLO WORLD
+<div style="display: flex; justify-content: center;">
+	<input id="input_login" type="text" autocomplete="off" placeholder='Login'></input>
+	<input id="input_password" type="text" autocomplete="off" placeholder='Password'></input>
+	<button id="button_send" onclick="AuthSend()">Send</button>
+</div>
+<script src="binrw.js"></script>
+<script>
+	function AuthEnter(event) {
+		if (event.key === "Enter") {
+			event.preventDefault();
+			button_send.click();
+		}
+	}
+	input_login.addEventListener("keydown", AuthEnter);
+	input_password.addEventListener("keydown", AuthEnter);
+	function AuthSend() {
+		const writer = new ByteWriter();
+		writer.u16(0);
+		writer.strn(input_login.value);
+		writer.strn(input_password.value);
+		fetch('/b', { method: 'POST', body: new Uint8Array(writer.arr) })
+			.then(resp => resp.arrayBuffer());
+			//.then(buf => AuthHandleResponce(buf));
+	}
+</script>
