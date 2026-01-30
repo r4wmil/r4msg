@@ -1,6 +1,21 @@
-<div style="display: flex; justify-content: center;">
-	<input id="input_login" type="text" autocomplete="off" placeholder='Login'></input>
-	<input id="input_password" type="text" autocomplete="off" placeholder='Password'></input>
+<style>
+.input {
+	display: flex;
+	gap: 10px;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+.input > * {
+	display: block;
+	width: 300px;
+	height: 30px;
+	font-size: 18px;
+}
+</style>
+<div class="input">
+	<input id="input_login" type="login" autocomplete="off" placeholder='Login'></input>
+	<input id="input_password" type="password" autocomplete="off" placeholder='Password'></input>
 	<button id="button_send" onclick="AuthSend()">Send</button>
 </div>
 <script src="binrw.js"></script>
