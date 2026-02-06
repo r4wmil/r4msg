@@ -13,11 +13,46 @@ void http_reply_binary(struct mg_connection* c, uint8_t* buf, size_t len) {
 	mg_send(c, buf, len);
 }
 
+#define BS_READ(sl_, amount_, out_, err_) \
+  do { \
+		if (*(err_)) { break; } \
+		const size_t amount = (amount_); \
+    if (amount > (sl_)->len) { *(err_) = 1; break; } \
+    memcpy((out_), (sl_)->buf, amount); \
+    (sl_)->buf += amount; \
+    (sl_)->len -= amount; \
+  } while(0);
+
+#define BS_READ_SLICE(sl_, amount_, out_, err_) \
+  do { \
+		if (*(err_)) { break; } \
+		const size_t amount = (amount_); \
+    if (amount > (sl_)->len) { *(err_) = 1; break; } \
+		*(out_) = (sl_)->buf; \
+    (sl_)->buf += amount; \
+    (sl_)->len -= amount; \
+  } while(0);
+
 void h_http_binary(struct mg_connection* c, struct mg_str data) {
 	mg_hexdump(data.buf, data.len);
-	uint8_t result = 0;
-	mg_hexdump(&result, 1);
-	http_reply_binary(c, &result, 1);
+	uint8_t err = 0;
+	uint16_t msg_type = 0;
+	struct mg_str username = {0};
+	struct mg_str password = {0};
+	BS_READ(&data, 2, &msg_type, &err);
+	BS_READ(&data, 4, &username.len, &err);
+	BS_READ_SLICE(&data, username.len, &username.buf, &err);
+	BS_READ(&data, 4, &password.len, &err);
+	BS_READ_SLICE(&data, password.len, &password.buf, &err);
+	if (err == 0) {
+		MG_INFO(("type=%d username='%.*s' password='%.*s'\n",
+				msg_type,
+				(int)username.len,
+				username.buf,
+				(int)password.len,
+				password.buf));
+	}
+	http_reply_binary(c, &(uint8_t){err}, 1);
 }
 
 void h_http_msg(struct mg_connection* c, void* ev_data) {

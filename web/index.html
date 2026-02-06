@@ -18,7 +18,8 @@
 	<input id="input_password" type="password" autocomplete="off" placeholder='Password'></input>
 	<button id="button_send" onclick="AuthSend()">Send</button>
 	<div id="auth_result" style="display: none;">
-		<span id="auth_result_ok">OK</span>
+		<span id="auth_result_ok">Success.</span>
+		<span id="auth_err_internal">Internal error!</span>
 	</div>
 </div>
 <script src="binrw.js"></script>
@@ -53,6 +54,7 @@
 		var msg_type = reader.u8();
 		switch (msg_type) {
 			case 0: auth_result_ok.style.display = "unset"; break;
+			case 1: auth_err_internal.style.display = "unset"; break;
 		}
 	}
 </script>
