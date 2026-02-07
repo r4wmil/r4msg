@@ -20,6 +20,7 @@
 	<div id="auth_result" style="display: none;">
 		<span id="auth_result_ok">Success.</span>
 		<span id="auth_err_internal">Internal error!</span>
+		<span id="auth_err_timeout">Server doesn't respond!</span>
 	</div>
 </div>
 <script src="binrw.js"></script>
@@ -27,7 +28,7 @@
 	// --- MAIN ---
 	input_login.addEventListener("keydown", AuthEnter);
 	input_password.addEventListener("keydown", AuthEnter);
-	AuthResponceClear();
+	AuthResultClear();
 	// --- DEFINITIONS ---
 	function AuthEnter(event) {
 		if (event.key === "Enter") {
@@ -40,21 +41,33 @@
 		writer.u16(0);
 		writer.strn(input_login.value);
 		writer.strn(input_password.value);
-		fetch('/b', { method: 'POST', body: new Uint8Array(writer.arr) })
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 2000);
+		fetch('/b', {
+			method: 'POST',
+			body: new Uint8Array(writer.arr),
+			signal: controller.signal
+		})
 			.then(resp => resp.arrayBuffer())
-			.then(buf => AuthHandleResponse(buf));
+			.then(buf => AuthHandleResponse(buf))
+			.catch(err => { if (err.name === 'AbortError') { AuthResult("auth_err_timeout"); }})
+			.finally(() => clearTimeout(timeoutId));
 	}
-	function AuthResponceClear() {
+	function AuthResultClear() {
 		auth_result.style.display = "block";
 		Array.from(auth_result.children).forEach(c => { c.style.display = "none"; });
 	}
+	function AuthResult(err_id) {
+		AuthResultClear();
+		const el = document.getElementById(err_id);
+		el.style.display = "unset";
+	}
 	function AuthHandleResponse(buf) {
 		const reader = new ByteReader(buf);
-		AuthResponceClear();
 		var msg_type = reader.u8();
 		switch (msg_type) {
-			case 0: auth_result_ok.style.display = "unset"; break;
-			case 1: auth_err_internal.style.display = "unset"; break;
+			case 0: AuthResult("auth_result_ok"); break;
+			case 1: AuthResult("auth_err_internal"); break;
 		}
 	}
 </script>
