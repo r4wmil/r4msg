@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include <mongoose.h>
 
@@ -25,6 +26,41 @@
     (sl_)->len -= amount; \
   } while(0);
 
+// DB
+
+typedef struct Database {
+	int users_afd;
+} Database;
+
+Database db;
+
+void DBInit() {
+	assert(!mkdir("db", 0755) || errno == EEXIST);
+	db.users_afd = open("db/users.bin", O_WRONLY | O_CREAT | O_APPEND, 0644);
+	assert(db.users_afd >= 0);
+}
+
+void DBUserAdd(struct mg_str username, struct mg_str password) {
+	// id(8b)
+	// username(24b)
+	// password_hash(16b)
+	// created_timestamp(8b)
+	// display_name(128b)
+	uint8_t buf[1024] = {0};
+	size_t i = 0;
+	// TODO: id index
+	i += 8;
+	memcpy(buf + i, username.buf, username.len);
+	i += 24;
+	// TODO: other fields
+	ssize_t wn = write(db.users_afd, buf, 1024);
+	assert(wn == 1024);
+}
+
+void DBDeinit() {
+	close(db.users_afd);
+}
+
 // HTTP
 
 void http_reply_binary(struct mg_connection* c, uint8_t* buf, size_t len) {
@@ -48,14 +84,22 @@ void h_http_binary(struct mg_connection* c, struct mg_str data) {
 	BS_READ_SLICE(&data, username.len, &username.buf, &err);
 	BS_READ(&data, 4, &password.len, &err);
 	BS_READ_SLICE(&data, password.len, &password.buf, &err);
-	if (err == 0) {
-		MG_INFO(("type=%d username='%.*s' password='%.*s'\n",
-				msg_type,
+	if (err == 1) { goto defer; }
+	if (username.len > 24) { err = 2; goto defer; }
+	for (size_t i = 0; i < username.len; i++) {
+		char c = username.buf[i];
+		if (c >= 'a' && c <= 'z') { continue; }
+		if (c >= 'A' && c <= 'Z') { continue; }
+		if (c >= '0' && c <= '9') { continue; }
+		err = 3; goto defer;
+	}
+	DBUserAdd(username, password);
+	MG_INFO(("username='%.*s' password='%.*s'\n",
 				(int)username.len,
 				username.buf,
 				(int)password.len,
 				password.buf));
-	}
+defer:
 	http_reply_binary(c, &(uint8_t){err}, 1);
 }
 
@@ -91,12 +135,15 @@ int main() {
 	char addrstr[32];
 	snprintf(addrstr, sizeof(addrstr), "http://0.0.0.0:%d", 6969);
 	mg_http_listen(&mgr, addrstr, h_event, NULL);
+	DBInit();
 
 	signal(SIGINT, mainloop_break);
 	signal(SIGTERM, mainloop_break);
 	while (mainloop_flag) {
 		mg_mgr_poll(&mgr, 1000);
 	}
+
+	DBDeinit();
 	mg_mgr_free(&mgr);
 	printf("Closed.\n");
 	return 0;
