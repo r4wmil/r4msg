@@ -79,6 +79,9 @@ void h_event(struct mg_connection* c, int ev, void* ev_data) {
 	}
 }
 
+bool mainloop_flag = true;
+void mainloop_break(int sig) { mainloop_flag = false; }
+
 int main() {
 	mg_log_set(MG_LL_INFO);
 
@@ -89,10 +92,12 @@ int main() {
 	snprintf(addrstr, sizeof(addrstr), "http://0.0.0.0:%d", 6969);
 	mg_http_listen(&mgr, addrstr, h_event, NULL);
 
-	for (;;) {
+	signal(SIGINT, mainloop_break);
+	signal(SIGTERM, mainloop_break);
+	while (mainloop_flag) {
 		mg_mgr_poll(&mgr, 1000);
 	}
-
 	mg_mgr_free(&mgr);
+	printf("Closed.\n");
 	return 0;
 }
