@@ -28,16 +28,40 @@
 
 // DB
 
+typedef struct DBArray {
+	int fd;
+	size_t block_size;
+} DBArray;
+
+DBArray DBAInit(char* fname, size_t block_size) {
+	DBArray dba = {0};
+	assert(!mkdir("db", 0755) || errno == EEXIST);
+	dba.fd = open(fname, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	dba.block_size = block_size;
+	off_t offset = lseek(dba.fd, 0, SEEK_END);
+	printf("size=%ld\n", offset);
+	assert(dba.fd >= 0);
+	return dba;
+}
+
+void DBAAppend(DBArray* dba, uint8_t* buf) {
+	lseek(dba->fd, 0, SEEK_END);
+	ssize_t wn = write(dba->fd, buf, dba->block_size);
+	assert(wn == dba->block_size);
+}
+
+void DBADeinit(DBArray* dba) {
+	close(dba->fd);
+}
+
 typedef struct Database {
-	int users_afd;
+	DBArray a_users;
 } Database;
 
 Database db;
 
 void DBInit() {
-	assert(!mkdir("db", 0755) || errno == EEXIST);
-	db.users_afd = open("db/users.bin", O_WRONLY | O_CREAT | O_APPEND, 0644);
-	assert(db.users_afd >= 0);
+	db.a_users = DBAInit("db/users.bin", 1024);
 }
 
 void DBUserAdd(struct mg_str username, struct mg_str password) {
@@ -53,12 +77,11 @@ void DBUserAdd(struct mg_str username, struct mg_str password) {
 	memcpy(buf + i, username.buf, username.len);
 	i += 24;
 	// TODO: other fields
-	ssize_t wn = write(db.users_afd, buf, 1024);
-	assert(wn == 1024);
+	DBAAppend(&db.a_users, buf);
 }
 
 void DBDeinit() {
-	close(db.users_afd);
+	DBADeinit(&db.a_users);
 }
 
 // HTTP
